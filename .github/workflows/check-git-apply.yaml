@@ -1,15 +1,15 @@
 name: Check git apply
 permissions:
-#  actions: none
-#  checks: none
-#  contents: write
-#  deployments: none
-#  issues: none
-#  packages: none
-   pull-requests: write
-#  repository-projects: none
-#  security-events: none
-#  statuses: none
+  #  actions: none
+  #  checks: none
+  contents: write
+  #  deployments: none
+  #  issues: none
+  #  packages: none
+  pull-requests: write
+  #  repository-projects: none
+  #  security-events: none
+  #  statuses: none
 
 on:
   push:
@@ -17,29 +17,33 @@ on:
       - 'ci'
     paths:
       - 'build/**'
-
   workflow_dispatch:
     inputs:
       rtag:
         description: 'wbrows/whitetools-chromium TAG or COMMIT'
-        required: true
+        required: false
         default: ''
 
 env:
+  # Если workflow запускается через workflow_dispatch (вручную),
+  # значение берём из ввода; если пустое, на шаге Set RTAG if empty выставим GITHUB_SHA
   RTAG: ${{ github.event.inputs.rtag }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-
-      - name: "Get value from dispatch"
+      # 1. Устанавливаем RTAG, если он пустой
+      - name: "Set RTAG if empty"
         run: |
-          if [ -z "${RTAG}" ]; then
+          if [ -z "${{ env.RTAG }}" ]; then
             echo "RTAG=$GITHUB_SHA" >> $GITHUB_ENV
-            echo "RTAG=$RTAG"
+            echo "Устанавливаем RTAG в $GITHUB_SHA, так как он был пустым."
+          else
+            echo "RTAG задан: ${{ env.RTAG }}"
           fi
 
+      # 2. Подготовка контейнера + определяем BRANCH
       - name: Prepare container
         run: |
           sudo apt update
@@ -53,9 +57,11 @@ jobs:
           unzip pup_v0.4.0_linux_amd64.zip
           rm pup_v0.4.0_linux_amd64.zip
 
-          BRANCH=$(curl https://github.com/wbrows/whitetools-chromium/branch_commits/$RTAG | ./pup -p li.branch:last-child a text{})
+          # Теперь env.RTAG уже или тот, что ввёл пользователь, или GITHUB_SHA
+          BRANCH=$(curl "https://github.com/wbrows/whitetools-chromium/branch_commits/${{ env.RTAG }}" | ./pup -p 'li.branch:last-child a text{}')
+
           if [ -z "${BRANCH}" ]; then
-            BRANCH=$(curl https://github.com/wbrows/whitetools-chromium/branch_commits/$RTAG a | ./pup -p li.branch:first-child a text{})
+            BRANCH=$(curl "https://github.com/wbrows/whitetools-chromium/branch_commits/${{ env.RTAG }}" | ./pup -p 'li.branch:first-child a text{}')
           fi
           if [ -z "${BRANCH}" ]; then
             echo "Can not recover the base commit"
@@ -63,42 +69,49 @@ jobs:
           fi
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
 
+      # 3. Клонируем репозиторий на нужный TAG/commit (или ветку)
       - name: Checkout 'wbrows/whitetools-chromium' ${{ env.BRANCH }}
         uses: actions/checkout@v2
         with:
-            repository: 'wbrows/whitetools-chromium'
-            ref: ${{ github.event.inputs.rtag }}
-            path: 'cromite'
-            fetch-depth: 1
+          repository: 'wbrows/whitetools-chromium'
+          ref: ${{ env.RTAG }}
+          path: 'cromite'
+          fetch-depth: 1
 
+      # 4. Проверяем версию Chromium
       - name: Check chromium version
         run: |
           export HOME=$GITHUB_WORKSPACE
           VERSION=$(cat ~/cromite/build/RELEASE)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
+      # 5. Кэшируем исходники Chromium
       - name: Cache chromium sources
         uses: actions/cache@v3
         with:
           path: chromium-src
           key: chrsource-${{ env.VERSION }}
 
+      # 6. Скачиваем Chromium (bromite) исходники
       - name: Download chromium ${{ env.VERSION }} sources
         run: |
           export HOME=$GITHUB_WORKSPACE
-          ./bin/SuperPatchUtils bromite $RTAG ~/chromium-src
+          ./bin/SuperPatchUtils bromite ${{ env.RTAG }} ~/chromium-src
           mkdir -p ~/chromium/src && cp -rT ~/chromium-src ~/chromium/src
           cd ~/chromium/src
           git init
           git config user.email "you@example.com"
           git config user.name "Your Name"
           git add .
-          git commit -m $VERSION
-          git tag -a $VERSION -m $VERSION
-
+          git commit -m "$VERSION"
+          git tag -a "$VERSION" -m "$VERSION"
+          
+          # Пример: исключить v8 из дальнейших действий (или наоборот),
+          # поэтому коммитим с меткой :NOEXPORT:
           git add -f v8 && git commit -m ":NOEXPORT: v8" || true
 
-      - name: Apply patches ${{ github.event.inputs.rtag }}
+      # 7. Применяем патчи
+      - name: Apply patches ${{ env.RTAG }}
         run: |
           export HOME=$GITHUB_WORKSPACE
           cd ~/chromium/src
@@ -110,6 +123,7 @@ jobs:
           rm -rf ~/cromite/build/patches-new/
           rm ~/cromite/build/cromite_patches_list_new.txt
 
+      # 8. Экспортируем патчи (если что-то поменялось)
       - name: Export patches
         run: |
           export HOME=$GITHUB_WORKSPACE
@@ -122,6 +136,7 @@ jobs:
           mv build/patches-new/* build/patches
           rm -rf build/patches-new/
 
+      # 9. Проверяем, есть ли изменения (CHANGES=1)
       - name: Check differences CHANGES=${{ env.CHANGES }}
         run: |
           export HOME=$GITHUB_WORKSPACE
@@ -130,13 +145,14 @@ jobs:
           CHANGES=0 && git diff --quiet || CHANGES=1
           echo "CHANGES=$CHANGES" >> $GITHUB_ENV
 
-          if [[ CHANGES -eq 1 ]]; then
+          if [[ "$CHANGES" -eq 1 ]]; then
               git add build/patches/*.patch
               git diff --name-only --staged
+              # При желании можно собрать сообщение:
               # MESSAGE=$(git diff --name-only --staged)
               # echo "MESSAGE='$MESSAGE'" >> $GITHUB_ENV
-          fi
 
+      # 10. Создаём Pull Request, если есть изменения
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c #v6.1.0
         if: env.CHANGES == '1'
@@ -144,7 +160,7 @@ jobs:
           token: ${{ secrets.CROMITE_PULLS }}
           path: cromite
           base: ${{ env.BRANCH }}
-          #push-to-fork: wbrows/whitetools-chromium
+          # push-to-fork: wbrows/whitetools-chromium  # если нужно пушить в форк
           add-paths: |
             build/patches/*.patch
           commit-message: '[AUTO] Patches auto-rebase'
