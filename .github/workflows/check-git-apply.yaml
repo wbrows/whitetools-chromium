@@ -44,29 +44,21 @@ jobs:
           fi
 
       # 2. Подготовка контейнера + определяем BRANCH
-      - name: Prepare container
+      - name: Find branch containing commit
         run: |
-          sudo apt update
-          sudo apt install -y wget unzip tar sed dos2unix patchutils wiggle curl
+          cd cromite
+          BRANCHES=$(git branch --remotes --contains "${{ env.RTAG }}" || true)
+          echo "FOUND=$BRANCHES"
 
-          wget https://github.com/uazo/superpatch/releases/latest/download/SuperPatchUtils.tar.gz
-          tar xfz SuperPatchUtils.tar.gz
-          rm SuperPatchUtils.tar.gz
-
-          wget https://github.com/ericchiang/pup/releases/download/v0.4.0/pup_v0.4.0_linux_amd64.zip
-          unzip pup_v0.4.0_linux_amd64.zip
-          rm pup_v0.4.0_linux_amd64.zip
-
-          # Теперь env.RTAG уже или тот, что ввёл пользователь, или GITHUB_SHA
-          BRANCH=$(curl "https://github.com/wbrows/whitetools-chromium/branch_commits/${{ env.RTAG }}" | ./pup -p 'li.branch:last-child a text{}')
-
-          if [ -z "${BRANCH}" ]; then
-            BRANCH=$(curl "https://github.com/wbrows/whitetools-chromium/branch_commits/${{ env.RTAG }}" | ./pup -p 'li.branch:first-child a text{}')
-          fi
-          if [ -z "${BRANCH}" ]; then
+          if [ -z "$BRANCHES" ]; then
             echo "Can not recover the base commit"
             exit 1
           fi
+
+          # Удаляем символы вроде '* ', 'remotes/origin/' и берем первую строку
+          BRANCH=$(echo "$BRANCHES" \
+            | sed 's|^..||; s|remotes/origin/||' \
+            | head -n1)
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
 
       # 3. Клонируем репозиторий на нужный TAG/commit (или ветку)
