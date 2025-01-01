@@ -107,7 +107,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget unzip tar sed dos2unix patchutils wiggle curl
 
-          
+          # Скачиваем SuperPatchUtils
+          wget https://github.com/uazo/superpatch/releases/latest/download/SuperPatchUtils.tar.gz
+          tar xfz SuperPatchUtils.tar.gz
+          rm SuperPatchUtils.tar.gz
+
+          # Собственно, скачиваем
+          ./bin/SuperPatchUtils bromite ${{ env.VERSION }} ~/chromium-src
 
           # Делаем заготовку для git-репо, чтобы потом патчить
           mkdir -p ~/chromium/src && cp -rT ~/chromium-src ~/chromium/src
