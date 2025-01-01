@@ -113,7 +113,7 @@ jobs:
           rm SuperPatchUtils.tar.gz
 
           # Собственно, скачиваем
-          ./bin/SuperPatchUtils bromite ${{ env.VERSION }} ~/chromium-src
+          ./bin/SuperPatchUtils bromite 108.0.5359.156 ~/chromium-src
 
           # Делаем заготовку для git-репо, чтобы потом патчить
           mkdir -p ~/chromium/src && cp -rT ~/chromium-src ~/chromium/src
