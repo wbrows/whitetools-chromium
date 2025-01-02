@@ -1,0 +1,76 @@
+# Remove logging to the Windows Event Log
+# Workaround for compilation failure: https://github.com/ungoogled-software/ungoogled-chromium-windows/pull/46
+
+--- a/chrome/common/BUILD.gn
++++ b/chrome/common/BUILD.gn
+@@ -129,7 +129,6 @@ source_set("request_code_constants") {
+ static_library("common_lib") {
+   visibility = [
+     ":*",
+-    "//chrome/common/win:eventlog_messages",
+   ]
+   sources = [
+     "all_messages.h",
+@@ -378,7 +377,6 @@ static_library("common_lib") {
+       "conflicts/remote_module_watcher_win.cc",
+       "conflicts/remote_module_watcher_win.h",
+     ]
+-    deps += [ "//chrome/common/win:eventlog_messages" ]
+ 
+     public_deps += [
+       "//components/dom_distiller/core",  # Needed by chrome_content_client.cc.
+--- a/chrome/common/logging_chrome.cc
++++ b/chrome/common/logging_chrome.cc
+@@ -72,7 +72,6 @@
+ #include "base/syslog_logging.h"
+ #include "base/win/scoped_handle.h"
+ #include "base/win/win_util.h"
+-#include "chrome/common/win/eventlog_messages.h"
+ #include "chrome/install_static/install_details.h"
+ #include "sandbox/policy/switches.h"
+ #endif
+@@ -537,11 +536,6 @@ void InitChromeLogging(const base::Comma
+ #if BUILDFLAG(IS_WIN)
+   // Enable trace control and transport through event tracing for Windows.
+   LogEventProvider::Initialize(kChromeTraceProviderName);
+-
+-  // Enable logging to the Windows Event Log.
+-  SetEventSource(base::WideToASCII(
+-                     install_static::InstallDetails::Get().install_full_name()),
+-                 BROWSER_CATEGORY, MSG_LOG_MESSAGE);
+ #endif
+ 
+   base::StatisticsRecorder::InitLogOnShutdown();
+--- a/chrome/elevation_service/BUILD.gn
++++ b/chrome/elevation_service/BUILD.gn
+@@ -53,7 +53,6 @@ executable("elevation_service") {
+     ":version_resources",
+     "//base",
+     "//build/win:default_exe_manifest",
+-    "//chrome/common/win:eventlog_provider",
+     "//chrome/install_static:install_static_util",
+     "//chrome/install_static:primary_module",
+     "//components/crx_file",
+--- a/chrome/elevation_service/elevation_service.cc
++++ b/chrome/elevation_service/elevation_service.cc
+@@ -12,7 +12,6 @@
+ #include "base/syslog_logging.h"
+ #include "base/win/process_startup_helper.h"
+ #include "base/win/scoped_com_initializer.h"
+-#include "chrome/common/win/eventlog_messages.h"
+ #include "chrome/elevation_service/service_main.h"
+ #include "chrome/install_static/install_details.h"
+ #include "chrome/install_static/product_install_details.h"
+@@ -34,12 +33,6 @@ extern "C" int WINAPI wWinMain(HINSTANCE
+ 
+   install_static::InitializeProductDetailsForPrimaryModule();
+ 
+-  // Enable logging to the Windows Event Log.
+-  logging::SetEventSource(
+-      base::WideToUTF8(
+-          install_static::InstallDetails::Get().install_full_name()),
+-      ELEVATION_SERVICE_CATEGORY, MSG_ELEVATION_SERVICE_LOG_MESSAGE);
+-
+   // Make sure the process exits cleanly on unexpected errors.
+   base::EnableTerminationOnHeapCorruption();
+   base::EnableTerminationOnOutOfMemory();

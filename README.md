@@ -1,191 +1,145 @@
-<a href="https://github.com/uazo/cromite/releases/latest">
-  <img src="https://img.shields.io/github/v/release/uazo/cromite" alt="current Cromite release" title="current Cromite release" />
-</a>
-<br>
+# ungoogled-chromium-windows
 
-[![Build Cromite](https://github.com/uazo/cromite/actions/workflows/build_cromite.yaml/badge.svg)](https://github.com/uazo/cromite/actions/workflows/build_cromite.yaml)
+Windows packaging for [ungoogled-chromium](//github.com/Eloston/ungoogled-chromium).
 
-# Cromite (a Bromite fork) - Take back your browser
+## Downloads
 
-<a href="https://www.cromite.org">
-  <img title="Cromite - take back your browser!" src="https://www.cromite.org/app_icon.png" width="96" alt="Bromite" />
-</a>
-<br>
+[Download binaries from the Contributor Binaries website](//ungoogled-software.github.io/ungoogled-chromium-binaries/).
 
-Cromite is a [Chromium](https://www.chromium.org/Home) fork based on [Bromite](https://github.com/bromite/bromite) with built-in support for ad blocking and an eye for privacy.
+Or install using `winget install --id=eloston.ungoogled-chromium -e`.
 
-Cromite is available for Android arm64-v8a, arm32-v7a and x86_64, Oreo and above (Minimum v8.0, API level 26), Windows and Linux 64bit.
+**Source Code**: It is recommended to use a tag via `git checkout` (see building instructions below). You may also use `master`, but it is for development and may not be stable.
 
-# Goals
+## Building
 
-Cromite's goal is to
-- limit the features built into the browser that can be used as a platform for tracking users' habits, and, if it is not technically possible, disable them and leave it up to the user to choose whether to re-enable them
-- limit the close integration between the browser and its manufacturer
-- not let the excellent research work done by csagan5 with Bromite be lost
+Google only supports [Windows 10 x64 or newer](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/windows_build_instructions.md#system-requirements). These instructions are tested on Windows 10 Pro x64.
 
-In addition, Cromite would like to promote greater integration with other non-profit, open source browsers, encouraging closer collaboration with others, and attempt to integrate them directly into Chromium once they have reached an appropriate level of maturity.
+NOTE: The default configuration will build 64-bit binaries for maximum security (TODO: Link some explanation). This can be changed to 32-bit by setting `target_cpu` to `"x86"` in `flags.windows.gn`.
 
-# Privacy limitations
+### Setting up the build environment
 
-Cromite's privacy features, including anti-fingerprinting mitigations (which are not comprehensive), **are not to be considered useful for journalists and people living in countries with freedom limitations**, please look at [Tor Browser](https://www.torproject.org/download/) in such cases (better to use the desktop version).
-Please note that this project is not free of bugs and that changing the behaviour of a browser can be risky and not without problems.
+**IMPORTANT**: Please setup only what is referenced below. Do NOT setup other Chromium compilation tools like `depot_tools`, since we have a custom build process which avoids using Google's pre-built binaries.
 
-# Docs
-- [Privacy Policy](https://github.com/uazo/cromite/blob/master/docs/PRIVACY_POLICY.md)
-- [Features](https://github.com/uazo/cromite/blob/master/docs/FEATURES.md)
-- [Faqs](https://github.com/uazo/cromite/blob/master/docs/FAQ.md)
-- [How to build](https://github.com/uazo/cromite/blob/master/docs/HOW_TO_BUILD.md)
-- [Patch list](https://github.com/uazo/cromite/blob/master/docs/PATCHES.md)
+#### Setting up Visual Studio
 
-# Releases
+[Follow the "Visual Studio" section of the official Windows build instructions](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/windows_build_instructions.md#visual-studio).
 
-All built versions are available as [releases](https://github.com/uazo/cromite/releases).
+* Make sure to read through the entire section and install/configure all the required components.
+* If your Visual Studio is installed in a directory other than the default, you'll need to set a few environment variables to point the toolchains to your installation path. (Copied from [instructions for Electron](https://electronjs.org/docs/development/build-instructions-windows))
+	* `vs2019_install = DRIVE:\path\to\Microsoft Visual Studio\2019\Community` (replace `2019` and `Community` with your installed versions)
+	* `WINDOWSSDKDIR = DRIVE:\path\to\Windows Kits\10`
+	* `GYP_MSVS_VERSION = 2019` (replace 2019 with your installed version's year)
 
-Cromite is currently built for ARM, ARM64, Android x86, Windows x64 and Linux.
 
-The following files will be present for each release:
+#### Other build requirements
 
-#### Cromite apk for android:
-- [arm64_ChromePublic.apk](https://github.com/uazo/cromite/releases/latest/download/arm64_ChromePublic.apk)
-- [arm_ChromePublic.apk](https://github.com/uazo/cromite/releases/latest/download/arm_ChromePublic.apk)
-- [x64_ChromePublic.apk](https://github.com/uazo/cromite/releases/latest/download/x64_ChromePublic.apk)
+**IMPORTANT**: Currently, the `MAX_PATH` path length restriction (which is 260 characters by default) must be lifted in for our Python build scripts. This can be lifted in Windows 10 (v1607 or newer) with the official installer for Python 3.6 or newer (you will see a button at the end of installation to do this). See [Issue #345](https://github.com/Eloston/ungoogled-chromium/issues/345) for other methods for older Windows versions.
 
-#### Cromite System WebView apk for android:
-- [arm64_SystemWebView64.apk](https://github.com/uazo/cromite/releases/latest/download/arm64_SystemWebView64.apk)
-- [x64_SystemWebView64.apk](https://github.com/uazo/cromite/releases/latest/download/x64_SystemWebView64.apk)
+1. Setup the following:
+    * 7-Zip
+    * Python 3.8 - 3.10 (for build and packaging scripts used below); Python 3.11 and above is not supported.
+    * If you don't plan on using the Microsoft Store version of Python:
+        * Check "Add python.exe to PATH" before install.
+        * At the end of the Python installer, click the button to lift the `MAX_PATH` length restriction.  
+        * Check that your `PATH` does not contain the `python3` wrapper shipped by Windows, as it will only prompt you to install Python from the Microsoft Store and exit. See [this question on stackoverflow.com](https://stackoverflow.com/questions/57485491/python-python3-executes-in-command-prompt-but-does-not-run-correctly)
+        * Ensure that your Python directory either has a copy of Python named "python3.exe" or a symlink linking to the Python executable.
+    * Make sure to lift the `MAX_PATH` length restriction, either by clicking the button at the end of the Python installer or by [following these instructions](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry#:~:text=Enable,Later).
+    * Git (to fetch all required ungoogled-chromium scripts)
+        * During setup, make sure "Git from the command line and also from 3rd-party software" is selected. This is usually the recommended option.
+    * The following additional python modules needs to be installed using `pip install`:
+        * httplib2
 
-#### Linux package:
-- [chrome-lin64.tar.gz](https://github.com/uazo/cromite/releases/latest/download/chrome-lin64.tar.gz)
+### Building
 
-#### Windows package:
-- [chrome-win.zip](https://github.com/uazo/cromite/releases/latest/download/chrome-win.zip)
+Run in `Developer Command Prompt for VS` (as administrator):
 
-Additional files are also available:
-
-#### Vanilla Chromium for android (used for tests):
-- arm64_VanillaChromium.apk
-- arm_VanillaChromium.apk
-- x64_VanillaChromium.apk
-
-#### SystemWebView Shell (used for tests)
-- arm64_SystemWebViewShell.apk
-- x64_SystemWebViewShell.apk
-
-#### Debugging symbols and proguard file for java stacktrace deobfuscation
-- x64_ChromePublic.apk.mapping
-- arm64_ChromePublic.apk.mapping
-- arm64_symbols.zip
-
-#### Build time analysis file:
-- arm64_ninja_log_trace.html
-
-#### Chrlauncher autoupdate file:
-- updateurl.txt
-
-### F-droid
-
-Official F-droid repo url:
-https://www.cromite.org/fdroid/repo/?fingerprint=49F37E74DEE483DCA2B991334FB5A0200787430D0B5F9A783DD5F13695E9517B
-
-### Auto-update in Android
-
-You will automatically receive notifications about new updates (and be able to install them) via the auto updater functionality.
-You will be asked whether you want to activate the functionality during the first start-up.
-
-### Auto-update setup for Windows
-
-1. Download https://github.com/henrypp/chrlauncher/releases
-2. Create a `chrlauncher.ini`
-
-```
-[chrlauncher]
-
-# Custom Chromium update URL (string):
-ChromiumUpdateUrl=https://github.com/uazo/cromite/releases/latest/download/updateurl.txt
-
-# Command line for Chromium (string):
-# note --user-data-dir= works better if path is absolute
-# See here: http://peter.sh/experiments/chromium-command-line-switches/
-ChromiumCommandLine=--user-data-dir="C:\Users\<my user>\AppData\Local\Cromite\User Data" --no-default-browser-check
-
-# to enable full logging in c:\temp\log.txt (daily rotate, no automatic deletion)
-# ChromiumCommandLine=--enable-logging --v=0 --log-file=C:\temp\log.txt --user-data-dir=".\User Data" --no-default-browser-check
-
-# Chromium executable file name (string):
-ChromiumBinary=chrome.exe
-
-# Chromium binaries directory (string):
-# Relative (to chrlauncher directory) or full path (env. variables supported).
-ChromiumDirectory=.\bin
-```
-To prevent deletion by Microsoft Defender each time the browser is updated, check the `user-data-dir` folder by modifying it accordingly.
-
-### Enable network process sandbox in windows
-I don't include any setups because I don't like the experience of not knowing what they do, so you must manually run this command on first installation:
-```
-cd <where_is_the_exe>
-icacls . /grant "*S-1-15-2-2:(OI)(CI)(RX)"
-```
-see https://github.com/uazo/bromite-buildtools/issues/51
-
-### Enable AppContainer for renderer process in windows
-you can activate (highly recommended) the 'RendererAppContainer' flag from the command line with
-```
-  --enable-features=RendererAppContainer
+```cmd
+git clone --recurse-submodules https://github.com/ungoogled-software/ungoogled-chromium-windows.git
+cd ungoogled-chromium-windows
+# Replace TAG_OR_BRANCH_HERE with a tag or branch name
+git checkout --recurse-submodules TAG_OR_BRANCH_HERE
+python3 build.py
+python3 package.py
 ```
 
-### Auto-update setup for linux
-working in progress in https://github.com/uazo/cromite/issues/771
+A zip archive and an installer will be created under `build`.
 
-### Making Cromite work in Ubuntu 24.04 and its derivatives (kubuntu, etc)
-This happens because, starting with Ubuntu 24.04, Apparmor
-restricts the use of unprivileged user namespaces. To fix this, you have several options:
-#### 1. Creating an apparmor profile for cromite
-Create `/etc/apparmor.d/chrome`, and write:
+**NOTE**: If the build fails, you must take additional steps before re-running the build:
+
+* If the build fails while downloading the Chromium source code (which is during `build.py`), it can be fixed by removing `build\download_cache` and re-running the build instructions.
+* If the build fails at any other point during `build.py`, it can be fixed by removing everything under `build` other than `build\download_cache` and re-running the build instructions. This will clear out all the code used by the build, and any files generated by the build.
+
+An efficient way to delete large amounts of files is using `Remove-Item PATH -Recurse -Force`. Be careful however, files deleted by that command will be permanently lost.
+
+## Developer info
+
+### First-time setup
+
+1. [Setup MSYS2](http://www.msys2.org/)
+2. Run the following in a "MSYS2 MSYS" shell:
+
+```sh
+pacman -S quilt python3 vim tar dos2unix
+# By default, there doesn't seem to be a vi command for less, quilt edit, etc.
+ln -s /usr/bin/vim /usr/bin/vi
 ```
-abi <abi/4.0>,
-include <tunables/global>
 
-profile cromite /home/user/cromite/chrome-lin/chrome flags=(unconfined) {
-  userns,
+### Updating patches and pruning list
 
-  include if exists <local/chrome>
-}
-```
-replacing the cromite binary path with where you have placed cromite.
+1. Start `Developer Command Prompt for VS` and `MSYS2 MSYS` shell and navigate to source folder
+	1. `Developer Command Prompt for VS`
+		* `cd c:\path\to\repo\ungoogled-chromium-windows`
+	1. `MSYS2 MSYS`
+		* `cd /path/to/repo/ungoogled-chromium-windows`
+		* You can use Git Bash to determine the path to this repo
+		* Or, you can find it yourself via `/<drive letter>/<path with forward slashes>`
+1. Retrieve downloads
+	**`Developer Command Prompt for VS`**
+	* `mkdir "build\download_cache"`
+	* `python3 ungoogled-chromium\utils\downloads.py retrieve -i downloads.ini -c build\download_cache`
+1. Clone sources
+	**`Developer Command Prompt for VS`**
+	* `python3 ungoogled-chromium\utils\clone.py -o build\src`
+1. Check for rust version change (see below)
+1. Update pruning list
+	**`Developer Command Prompt for VS`**
+	* `python3 ungoogled-chromium\devutils\update_lists.py -t build\src --domain-regex ungoogled-chromium\domain_regex.list`
+1. Unpack downloads
+	**`Developer Command Prompt for VS`**
+	* `python3 ungoogled-chromium\utils\downloads.py unpack -i downloads.ini -c build\download_cache build\src`
+1. Apply ungoogled-chromium patches
+	**`Developer Command Prompt for VS`**
+	* `python3 ungoogled-chromium\utils\patches.py apply --patch-bin build\src\third_party\git\usr\bin\patch.exe build\src ungoogled-chromium\patches`
+1. Update windows patches
+	**`MSYS2 MSYS`**
+	1. Setup shell to update patches
+		* `source devutils/set_quilt_vars.sh`
+	1. Go into the source tree
+		* `cd build/src`
+	1. Fix line breaks of files to patch
+		* `grep -r ../../patches/ -e "^+++" | awk '{print substr($2,3)}' | xargs dos2unix`
+	1. Use quilt to refresh patches. See ungoogled-chromium's [docs/developing.md](https://github.com/Eloston/ungoogled-chromium/blob/master/docs/developing.md#updating-patches) section "Updating patches" for more details
+	1. Go back to repo root
+		* `cd ../..`
+	1. Sanity checking for consistency in series file
+		* `./devutils/check_patch_files.sh`
+1. Check for esbuild dependency changes in file `build/src/DEPS` and adapt `downloads.ini` accordingly
+1. Check for commit hash changes of `src` submodule in `third_party/microsoft_dxheaders` (e.g. using GitHub https://github.com/chromium/chromium/tree/127.0.6533.72/third_party/microsoft_dxheaders) and adapt `downloads.ini` accordingly
+1. Check for version changes of windows rust crate (`third_party/rust/windows_x86_64_msvc/`) and adapt `downloads.ini` and `patches/ungoogled-chromium/windows\windows-fix-building-with-rust.patch` accordingly
+1. Use git to add changes and commit
 
-Now, run `sudo apparmor_parser -r /etc/apparmor.d/cromite` to apply the changes.
-#### 2. Disabling the restriction until next reboot
-`sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`
-#### 3. Disabling the restriction permanently
-Add `kernel.apparmor_restrict_unprivileged_userns=0` to the file `/etc/sysctl.d/60-apparmor-namespace.conf`.  Create the file if not exists.
+### Update rust
+1. Check `RUST_REVISION` constant in file `tools/rust/update_rust.py` in build root.
+	1. Current revision is `ab71ee7a9214c2793108a41efb065aa77aeb7326`
+1. Get date for nightly rust build from rust github page: `https://github.com/rust-lang/rust/commit/ab71ee7a9214c2793108a41efb065aa77aeb7326`
+	1. In this case, the corresponding nightly build date is `2024-04-12`
+	1. Adapt `downloads.ini` accordingly
+1. Download nightly rust build from: https://static.rust-lang.org/dist/2024-04-12/rust-nightly-x86_64-pc-windows-msvc.tar.gz
+	1. Extract archive
+	1. Execute `rustc\bin\rustc.exe -V` to get rust version string
+	1. Adapt `build.py` accordingly
+	1. Adapt `patches\ungoogled-chromium\windows\windows-fix-building-with-rust.patch` accordingly
 
-# Contributing
+## License
 
-Please submit issues following the issue template; beware that GitHub does not display the templates from mobile.
-
-Patches are welcome and accepted if they match the project goals.
-
-If you want to help me, [here](https://github.com/uazo/cromite/blob/master/docs/HELP_ME_PLEASE.md) is the list of things I would need.
-
-For any usage or development discussion please use GitHub Discussions: https://github.com/uazo/cromite/discussions
-
-# Credits
-
-* [Chromium project](https://www.chromium.org/Home) and developers
-* [Bromite](https://github.com/bromite/bromite)
-  * [Iridium project](https://github.com/iridium-browser) for some patches
-  * [ungoogled-chromium](https://github.com/Eloston/ungoogled-chromium) for some patches
-  * [ungoogled-chromium-android](https://github.com/ungoogled-software/ungoogled-chromium-android) for some patches
-  * [GrapheneOS](https://github.com/GrapheneOS) for some security patches
-  * [Inox patchset](https://github.com/gcarq/inox-patchset) for some patches (via ungoogled-chromium)
-  * [Brave Browser](https://github.com/brave/brave-core) for some patches
-
-thanks to [austinhuang0131](https://github.com/austinhuang0131) for the svg icon
-
-# License
-
-Cromite is published under [GNU GPL v3](./LICENSE).
-The patches published as part of the Bromite project are released under GNU GPL v3 only.
-Cromite specific patches are under the GNU GPL-2+ licence.
-Each individual patch contains specific information on the licence used.
+See [LICENSE](LICENSE)
