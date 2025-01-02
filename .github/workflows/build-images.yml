@@ -59,8 +59,8 @@ jobs:
 
       - name: Build MSVC container image
         run: |
+          chmod -R 777 cross-build/
           cd cross-build
-          chmod +x gen-setenv.py
           make build-image \
             MSVC_ACCEPT_LICENSE=--accept-license \
             X64_ONLY=
