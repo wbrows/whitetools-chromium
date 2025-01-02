@@ -1,0 +1,25 @@
+# Return blank values for WebGLDebugRendererInfo to remove a potential data
+# leak while preventing potential website breakage
+
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+@@ -3852,8 +3852,7 @@ ScriptValue WebGLRenderingContextBase::g
+               pname, IdentifiabilityBenignStringToken(
+                          String(ContextGL()->GetString(GL_RENDERER))));
+         }
+-        return WebGLAny(script_state,
+-                        String(ContextGL()->GetString(GL_RENDERER)));
++        return WebGLAny(script_state, String(""));
+       }
+       SynthesizeGLError(
+           GL_INVALID_ENUM, "getParameter",
+@@ -3867,8 +3866,7 @@ ScriptValue WebGLRenderingContextBase::g
+               pname, IdentifiabilityBenignStringToken(
+                          String(ContextGL()->GetString(GL_VENDOR))));
+         }
+-        return WebGLAny(script_state,
+-                        String(ContextGL()->GetString(GL_VENDOR)));
++        return WebGLAny(script_state, String(""));
+       }
+       SynthesizeGLError(
+           GL_INVALID_ENUM, "getParameter",
