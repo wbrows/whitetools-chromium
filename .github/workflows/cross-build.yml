@@ -232,7 +232,7 @@ jobs:
             echo "Deleting artifact \"$name\" (id=$id)"
             gh_api_call "artifacts/$id" --method DELETE
           done < artifacts.txt
-    close-repo:
+  close-repo:
     needs: cleanup
     runs-on: ubuntu-latest
     steps:
