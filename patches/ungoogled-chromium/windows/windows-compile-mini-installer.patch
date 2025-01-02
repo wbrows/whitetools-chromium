@@ -1,6 +1,6 @@
 # To compile the mini-installer, a 7z archive of the browser has to be made.
 # Google's 7z executable gets purged, so we have to use the system's 7z executable.
-
+ 
 --- a/chrome/installer/mini_installer/BUILD.gn
 +++ b/chrome/installer/mini_installer/BUILD.gn
 @@ -192,7 +192,6 @@ action("mini_installer_archive") {
