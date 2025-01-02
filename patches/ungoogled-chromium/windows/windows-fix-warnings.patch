@@ -1,0 +1,42 @@
+With clang-18, we get a ton of
+
+  warning: unknown warning option
+  '-Wno-missing-template-arg-list-after-template-kw'; did you mean
+  '-Wno-gnu-string-literal-operator-template'?
+  [-Wunknown-warning-option]
+
+  warning: unknown warning option '-Wno-dangling-assignment-gsl'; did
+  you mean '-Wno-dangling-gsl'? [-Wunknown-warning-option]
+
+Also this one:
+
+  third_party/blink/renderer/platform/wtf/text/string_hash.h(73,58):
+  warning: implicit conversion loses integer precision: 'size_t' (aka
+  'unsigned long long') to 'unsigned int' [-Wshorten-64-to-32]
+
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -1969,12 +1969,6 @@ config("default_warnings") {
+           # TODO(crbug.com/41486292): Fix and re-enable.
+           "-Wno-c++11-narrowing-const-reference",
+         ]
+-
+-        # TODO(crbug.com/344680447): Fix and re-enable.
+-        cflags_cc += [ "-Wno-missing-template-arg-list-after-template-kw" ]
+-
+-        # TODO(crbug.com/356172342): Fix and re-enable.
+-        cflags_cc += [ "-Wno-dangling-assignment-gsl" ]
+       }
+     }
+ 
+--- a/third_party/blink/renderer/platform/wtf/text/string_hash.h
++++ b/third_party/blink/renderer/platform/wtf/text/string_hash.h
+@@ -70,7 +70,7 @@ struct HashTraits<String> : SimpleClassH
+   // implicit conversion operators both to String and one of the others,
+   // which would cause ambiguous overloads.
+   static unsigned GetHash(const char* key) {
+-    return StringHasher::ComputeHashAndMaskTop8Bits(key, strlen(key));
++    return StringHasher::ComputeHashAndMaskTop8Bits(key, unsigned(strlen(key)));
+   }
+   static unsigned GetHash(const LChar* key) {
+     return GetHash(reinterpret_cast<const char*>(key));
