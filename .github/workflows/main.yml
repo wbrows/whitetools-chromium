@@ -1,8 +1,13 @@
 name: CI
+
+
 on:
-  push:
-    paths:
-      "*"
+  workflow_dispatch:
+    inputs:
+      test:
+        type: boolean
+        description: "tst"
+        default: false
 
 jobs:
   open-repo:
