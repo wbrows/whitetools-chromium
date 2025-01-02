@@ -1,4 +1,3 @@
-upstream-fixes/glue_core_pools.patch
 upstream-fixes/hardware_destructive_interference_size.patch
 upstream-fixes/missing-dependencies.patch
 
@@ -34,6 +33,13 @@ core/ungoogled-chromium/disable-privacy-sandbox.patch
 core/ungoogled-chromium/doh-changes.patch
 core/ungoogled-chromium/extensions-manifestv2.patch
 core/bromite/disable-fetching-field-trials.patch
+core/bromite/eyeo-beta-118.0.5993.48-base.patch
+core/bromite/eyeo-beta-118.0.5993.48-chrome_integration.patch
+core/bromite/eyeo-beta-118.0.5993.48-android_api.patch
+core/bromite/eyeo-beta-118.0.5993.48-android_settings.patch
+core/bromite/eyeo-beta-118.0.5993.48-extension_api.patch
+core/bromite/Eyeo-Adblock-for-Cromite.patch
+
 
 extra/ungoogled-chromium/add-ungoogled-flag-headers.patch
 extra/inox-patchset/0006-modify-default-prefs.patch
@@ -106,4 +112,3 @@ extra/ungoogled-chromium/disable-capture-all-screens.patch
 extra/ungoogled-chromium/add-flag-to-reduce-system-info.patch
 extra/ungoogled-chromium/add-flag-to-remove-client-hints.patch
 extra/ungoogled-chromium/disable-downloads-page-referrer-url.patch
-extra/ungoogled-chromium/enable-extra-locales.patch
